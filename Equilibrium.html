@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chemical Equilibrium Simulator</title>
+
+<!-- 优先加载本地 chart.js，若无本地文件则自动降级加载网络 CDN -->
+<script src="./chart.js"></script>
+<script>
+  if (typeof Chart === 'undefined') {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>');
+  }
+</script>
+
+<style>
+  :root {
+    --primary: #2b6cb0;
+    --bg: #f7fafc;
+    --card-bg: #ffffff;
+    --text: #2d3748;
+    --border: #e2e8f0;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 20px;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 290px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .card {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    border: 1px solid var(--border);
+    box-sizing: border-box;
+  }
+  
+  .main-card {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+  }
+
+  h1 { font-size: 1.4rem; color: #1a365d; margin-top: 0; grid-column: 1 / -1; }
+  h2 { font-size: 1.05rem; color: var(--primary); margin-top: 0; border-bottom: 2px solid var(--border); padding-bottom: 6px; }
+  
+  .form-group { margin-bottom: 12px; }
+  
+  label { font-size: 0.85rem; font-weight: bold; color: var(--text); }
+  .sub-label { font-size: 0.75rem; color: #4a5568; margin-bottom: 2px; display: block; }
+  
+  .label-with-tooltip {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 4px;
+  }
+
+  input, select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+  .inline-inputs { display: flex; gap: 10px; }
+  .inline-inputs > div { flex: 1; }
+  
+  .btn-group { display: flex; gap: 8px; margin-top: 10px; }
+  button {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 0.85rem;
+  }
+  .btn-primary { background: #3182ce; color: white; }
+  .btn-primary:hover { background: #2b6cb0; }
+  .btn-danger { background: #e53e3e; color: white; }
+  .btn-danger:hover { background: #c53030; }
+  .btn-secondary { background: #edf2f7; color: #4a5568; }
+  .btn-secondary:hover { background: #e2e8f0; }
+
+  /* 问号按钮：严格控制正圆形、清除默认 padding、靠右对齐 */
+  .icon-tooltip-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    padding: 0 !important;
+    border: none;
+    background: transparent;
+    border-radius: 50% !important;   /* 确保绝对正圆 */
+    cursor: pointer;
+    color: #718096;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    flex: 0 0 22px;                 /* 防止被 flex 容器挤压或拉伸 */
+    margin-left: auto;              /* 稳稳靠右对齐 */
+    box-sizing: border-box;
+  }
+
+  .icon-tooltip-btn .icon {
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 1;
+  }
+
+  .icon-tooltip-btn:hover,
+  .icon-tooltip-btn:focus-visible {
+    background-color: rgba(0, 0, 0, 0.08);
+    color: #1a202c;
+    outline: none;
+  }
+
+  .icon-tooltip-btn .tooltip-text {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #1a202c;
+    color: #ffffff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: normal;
+    line-height: 1.3;
+    white-space: nowrap;
+    pointer-events: none;
+    
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+  }
+
+  .icon-tooltip-btn .tooltip-text::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 4px;
+    border-style: solid;
+    border-color: #1a202c transparent transparent transparent;
+  }
+
+  .icon-tooltip-btn:hover .tooltip-text,
+  .icon-tooltip-btn:focus-visible .tooltip-text {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .action-btn-group-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 0;
+  }
+
+  .btn-action {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-weight: bold;
+    color: #ffffff;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+    width: 100%;
+    text-align: center;
+    box-sizing: border-box;
+  }
+  .btn-action:hover { opacity: 0.85; }
+  .btn-setup { background-color: #4a5568; }
+  .btn-eq { background-color: #2f855a; }
+  .btn-restore { background-color: #dd6b20; }
+
+  .status-board {
+    display: flex;
+    justify-content: space-around;
+    background: #ebf8ff;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .status-board .val { font-size: 1.6rem; font-weight: bold; color: #2b6cb0; }
+  .status-board .lbl { font-size: 0.8rem; color: #4a5568; }
+
+  .chart-container { height: 200px; margin-bottom: 15px; flex-shrink: 0; }
+  
+  .table-wrapper {
+    flex: 1;
+    min-height: 120px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #ffffff;
+  }
+  
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; table-layout: auto; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: center; vertical-align: middle; }
+  
+  th { 
+    background: #edf2f7; 
+    position: sticky; 
+    top: 0; 
+    z-index: 10; 
+    font-size: 0.85rem; 
+    font-weight: bold; 
+    color: var(--text);
+  }
+  
+  .control-box {
+    margin-top: 15px;
+    background: #fffaf0;
+    border: 1px solid #feebc8;
+    padding: 12px;
+    border-radius: 6px;
+  }
+
+  .summary-card {
+    grid-column: 1 / -1;
+  }
+
+  .equil-highlight {
+    background-color: #c3dafe !important;
+    color: #2b6cb0;
+    font-weight: bold;
+    box-shadow: inset 0 0 0 2px #3182ce;
+  }
+</style>
+</head>
+<body>
+
+<h1>🧪 Chemical Equilibrium Simulator</h1>
+
+<div class="container">
+  <!-- 左侧控制面板 -->
+  <div class="card" id="leftCard">
+    <h2>1. Initial Setup</h2>
+    
+    <div class="form-group">
+      <div class="label-with-tooltip">
+        <label>Initial Amounts:</label>
+        <button type="button" class="icon-tooltip-btn" aria-label="Initial Amounts 提示">
+          <span class="icon">?</span>
+          <span class="tooltip-text">Enter positive numbers for initial amounts</span>
+        </button>
+      </div>
+      <div class="inline-inputs" style="margin-top: 4px;">
+        <div>
+          <span class="sub-label">A<sub>0</sub></span>
+          <input type="number" id="initA" value="100" placeholder="A0" onchange="resetSim()">
+        </div>
+        <div>
+          <span class="sub-label">B<sub>0</sub></span>
+          <input type="number" id="initB" value="0" placeholder="B0" onchange="resetSim()">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="label-with-tooltip">
+        <label>Rate Constants:</label>
+        <button type="button" class="icon-tooltip-btn" aria-label="Rate Constants 提示">
+          <span class="icon">?</span>
+          <span class="tooltip-text">Enter positive number < 1 (decimals like 0.05 or fractions like 1/30)</span>
+        </button>
+      </div>
+      <div class="inline-inputs" style="margin-top: 4px;">
+        <div>
+          <span class="sub-label">Forward (<i>k</i><sub>f</sub>)</span>
+          <input type="text" id="rateA" value="1/30" onchange="validateRateInput(this); resetSim();">
+        </div>
+        <div>
+          <span class="sub-label">Reverse (<i>k</i><sub>r</sub>)</span>
+          <input type="text" id="rateB" value="1/40" onchange="validateRateInput(this); resetSim();">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="label-with-tooltip">
+        <label>Calculation Mode:</label>
+        <button type="button" class="icon-tooltip-btn" aria-label="Calculation Mode 提示">
+          <span class="icon">?</span>
+          <span class="tooltip-text">Continuous uses exact floats; Discrete rounds values each step</span>
+        </button>
+      </div>
+      <select id="rounding" onchange="resetSim()">
+        <option value="none" selected>Continuous (Exact Decimals)</option>
+        <option value="floor">Discrete (Floor - Round Down)</option>
+        <option value="round">Discrete (Nearest Integer)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <div class="label-with-tooltip">
+        <label>Target Eq. Duration:</label>
+        <button type="button" class="icon-tooltip-btn" aria-label="Target Duration 提示">
+          <span class="icon">?</span>
+          <span class="tooltip-text">Automatically adjusts step speed to reach equilibrium within target time</span>
+        </button>
+      </div>
+      <select id="targetTimeSelect" onchange="calculateAdaptivePacing();">
+        <option value="20" selected>Max 20 Seconds (Adaptive)</option>
+        <option value="10">Max 10 Seconds (Faster)</option>
+        <option value="0">Normal Speed (1x)</option>
+      </select>
+    </div>
+
+    <div class="btn-group">
+      <button id="toggleBtn" class="btn-primary" onclick="toggleSim()">Start</button>
+      <button class="btn-secondary" onclick="resetSim()">Reset</button>
+    </div>
+
+    <h2 style="margin-top: 20px;">2. Stress</h2>
+    
+    <div class="control-box">
+      <div class="label-with-tooltip">
+        <label style="color: #c05621;">⚡ Inject / Remove Species:</label>
+        <button type="button" class="icon-tooltip-btn" aria-label="Inject Species 提示">
+          <span class="icon">?</span>
+          <span class="tooltip-text">Positive values add species; negative values remove species</span>
+        </button>
+      </div>
+      <div class="inline-inputs" style="margin-top: 6px;">
+        <div>
+          <span class="sub-label" style="color: #7b341e;">ΔA</span>
+          <input type="number" id="addA" value="20" placeholder="ΔA">
+        </div>
+        <div>
+          <span class="sub-label" style="color: #7b341e;">ΔB</span>
+          <input type="number" id="addB" value="0" placeholder="ΔB">
+        </div>
+      </div>
+      <button class="btn-secondary" style="width: 100%; margin-top: 8px; background: #feebc8; color: #7b341e;" onclick="injectSpecies()">Apply</button>
+    </div>
+
+    <div class="control-box" style="background: #f0fff4; border-color: #c6f6d5;">
+      <div class="label-with-tooltip">
+        <label style="color: #276749;">🌡️ Change Rate Constants:</label>
+        <button type="button" class="icon-tooltip-btn" aria-label="Change Rate Constants 提示">
+          <span class="icon">?</span>
+          <span class="tooltip-text">Enter new rate constants (< 1) for reaction steps</span>
+        </button>
+      </div>
+      <div class="inline-inputs" style="margin-top: 6px;">
+        <div>
+          <span class="sub-label" style="color: #22543d;">Forward (<i>k</i><sub>f</sub>)</span>
+          <input type="text" id="newRateA" value="1/15" placeholder="New k_f" onchange="validateRateInput(this)">
+        </div>
+        <div>
+          <span class="sub-label" style="color: #22543d;">Reverse (<i>k</i><sub>r</sub>)</span>
+          <input type="text" id="newRateB" value="1/20" placeholder="New k_r" onchange="validateRateInput(this)">
+        </div>
+      </div>
+      <button class="btn-secondary" style="width: 100%; margin-top: 8px; background: #c6f6d5; color: #22543d;" onclick="updateRates()">Apply</button>
+    </div>
+  </div>
+
+  <!-- 右侧结果与图表展示区 -->
+  <div class="card main-card" id="rightCard">
+    <div class="status-board">
+      <div>
+        <div class="lbl">Step Count</div>
+        <div class="val" id="dispRound">0</div>
+      </div>
+      <div>
+        <div class="lbl">Reactant A</div>
+        <div class="val" id="dispA">100.00</div>
+      </div>
+      <div>
+        <div class="lbl">Product B</div>
+        <div class="val" id="dispB">0.00</div>
+      </div>
+      <div>
+        <div class="lbl">Ratio (B / A)</div>
+        <div class="val" id="dispRatio">0.00</div>
+      </div>
+    </div>
+
+    <!-- 折线图 -->
+    <div class="chart-container">
+      <canvas id="simChart"></canvas>
+    </div>
+
+    <!-- 详细轮次表格 -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-shrink: 0;">
+      <h2 style="margin: 0; border: none;">Step-by-Step Data Log</h2>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-primary" style="flex: none; padding: 5px 12px; font-size: 0.8rem;" onclick="exportLogToExcel()">📥 Export to Excel</button>
+      </div>
+    </div>
+    
+    <div class="table-wrapper" id="logTableWrapper">
+      <table id="logTable">
+        <thead>
+          <tr>
+            <th>Step</th>
+            <th>Initial Amount<br>(A<sub>0</sub>)</th>
+            <th>Forward Change<br>(A → B)</th>
+            <th>Initial Amount<br>(B<sub>0</sub>)</th>
+            <th>Reverse Change<br>(B → A)</th>
+            <th id="th-log-Ae">End Amount<br>(A<sub>e</sub>)</th>
+            <th id="th-log-Be">End Amount<br>(B<sub>e</sub>)</th>
+            <th id="th-log-Ratio">End Ratio<br>(B<sub>e</sub> / A<sub>e</sub>)</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 汇总表 -->
+  <div class="card summary-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 6px; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+      <h2 style="margin: 0; border: none;">📊 Summary Log</h2>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; color: #c53030; border-color: #feb2b2; white-space: nowrap;" onclick="clearSummary()">🗑️ Clear</button>
+        <button class="btn-primary" style="padding: 6px 12px; font-size: 0.8rem; white-space: nowrap;" onclick="exportSummaryToExcel()">📥 Export to Excel</button>
+      </div>
+    </div>
+    
+    <div class="table-wrapper" style="height: 250px; flex: none;">
+      <table id="summaryTable">
+        <thead>
+          <tr>
+            <th style="width: 3%;">#</th>
+            <th style="width: 8%;">Initial Amount<br>(A<sub>0</sub>)</th>
+            <th style="width: 8%;">Initial Amount<br>(B<sub>0</sub>)</th>
+            <th style="width: 10%;">Forward Rate Constant<br>(<i>k</i><sub>f</sub>)</th>
+            <th style="width: 10%;">Reverse Rate Constant<br>(<i>k</i><sub>r</sub>)</th>
+            <th style="width: 10%;">Eq. Amount<br>(A<sub>eq</sub>)</th>
+            <th style="width: 10%;">Eq. Amount<br>(B<sub>eq</sub>)</th>
+            <th style="width: 10%;">Eq. Ratio<br>(B<sub>eq</sub> / A<sub>eq</sub>)</th>
+            <th style="width: 9%;">Steps to Eq.</th>
+            <th style="width: 22%;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  function syncHeights() {
+    const leftCard = document.getElementById('leftCard');
+    const rightCard = document.getElementById('rightCard');
+    if (leftCard && rightCard) {
+      const leftH = leftCard.offsetHeight;
+      rightCard.style.height = leftH + 'px';
+    }
+  }
+
+  window.addEventListener('load', syncHeights);
+  window.addEventListener('resize', syncHeights);
+
+  let currentStep = 0;
+  let curA = 100;
+  let curB = 0;
+  
+  let stageStartA = 100;
+  let stageStartB = 0;
+  let stageStartStep = 0;
+
+  let trialCount = 0;
+  let summaryRecords = [];
+
+  let simTimer = null;
+  let isRunning = false;
+
+  let lastStateStr = "";
+  let stableCount = 0;
+  let isCurrentlyEquilibrium = false;
+  let actualEquilStep = 0; 
+  let equilA = 0;
+  let equilB = 0;
+  let equilMoveA = 0;
+  let equilMoveB = 0;
+  let equilStartA = 0;
+  let equilStartB = 0;
+
+  let equilSteps = [];  
+  let stressSteps = []; 
+
+  let stepMultiplier = 1;
+  let timerInterval = 200;
+
+  let chart = null;
+
+  if (typeof Chart !== 'undefined') {
+    const annotationsPlugin = {
+      id: 'annotationsPlugin',
+      afterDraw: (chartInstance) => {
+        const ctx = chartInstance.ctx;
+        const xAxis = chartInstance.scales.x;
+        const yAxis = chartInstance.scales.y;
+
+        equilSteps.forEach(stepVal => {
+          const xPixel = xAxis.getPixelForValue(stepVal);
+          if (xPixel >= xAxis.left && xPixel <= xAxis.right) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.setLineDash([5, 4]);
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = '#e53e3e';
+            ctx.moveTo(xPixel, yAxis.top);
+            ctx.lineTo(xPixel, yAxis.bottom);
+            ctx.stroke();
+
+            ctx.fillStyle = '#e53e3e';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Eq.', xPixel, yAxis.top + 12);
+            ctx.restore();
+          }
+        });
+      }
+    };
+
+    const ctx = document.getElementById('simChart').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'scatter',
+      data: {
+        datasets: [
+          { 
+            label: 'Reactant A', 
+            data: [{x: 0, y: 100}], 
+            borderColor: '#3182ce', 
+            backgroundColor: '#3182ce', 
+            showLine: true,
+            tension: 0
+          },
+          { 
+            label: 'Product B', 
+            data: [{x: 0, y: 0}], 
+            borderColor: '#dd6b20', 
+            backgroundColor: '#dd6b20', 
+            showLine: true,
+            tension: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          x: {
+            type: 'linear',
+            position: 'bottom',
+            min: 0,
+            suggestedMax: 10,
+            ticks: {
+              stepSize: 1,
+              precision: 0,
+              callback: function(value) {
+                if (stressSteps.includes(value)) {
+                  return 'Stress';
+                }
+                return value;
+              }
+            }
+          },
+          y: { beginAtZero: true }
+        }
+      },
+      plugins: [annotationsPlugin]
+    });
+  }
+
+  function parseRate(input) {
+    let val = 0;
+    if (typeof input === 'number') {
+      val = input;
+    } else if (typeof input === 'string' && input.includes('/')) {
+      const parts = input.split('/');
+      val = parseFloat(parts[0]) / parseFloat(parts[1]);
+    } else {
+      val = parseFloat(input);
+    }
+    return val;
+  }
+
+  function validateRateInput(inputElem) {
+    const val = parseRate(inputElem.value);
+    if (isNaN(val) || val <= 0 || val >= 1) {
+      alert("Rate constant must be a positive number LESS than 1 (0 < k < 1)!");
+      inputElem.value = "1/30";
+      return false;
+    }
+    return true;
+  }
+
+  function fmt(num) {
+    return Number.isInteger(num) ? num : num.toFixed(2);
+  }
+
+  function calculateAdaptivePacing() {
+    const targetSeconds = parseFloat(document.getElementById('targetTimeSelect').value) || 0;
+    const rateA = parseRate(document.getElementById('rateA').value);
+    const rateB = parseRate(document.getElementById('rateB').value);
+
+    if (targetSeconds <= 0 || (rateA + rateB) >= 1) {
+      stepMultiplier = 1;
+      timerInterval = 200;
+      if (isRunning) {
+        clearInterval(simTimer);
+        simTimer = setInterval(stepRound, timerInterval);
+      }
+      return;
+    }
+
+    const totalRate = rateA + rateB;
+    const totalMass = curA + curB;
+    const eqA = totalMass * (rateB / totalRate);
+    const initialDiff = Math.abs(curA - eqA);
+    
+    let estimatedSteps = 10;
+    if (initialDiff > 0.01) {
+      estimatedSteps = Math.ceil(Math.log(0.005 / initialDiff) / Math.log(1 - totalRate));
+    }
+    estimatedSteps = Math.max(10, estimatedSteps);
+
+    const targetFrames = targetSeconds * 10;
+
+    if (estimatedSteps <= targetFrames) {
+      stepMultiplier = 1;
+      timerInterval = 200;
+    } else {
+      stepMultiplier = Math.ceil(estimatedSteps / targetFrames);
+      timerInterval = 100;
+    }
+
+    if (isRunning) {
+      clearInterval(simTimer);
+      simTimer = setInterval(stepRound, timerInterval);
+    }
+  }
+
+  function toggleSim() {
+    if (isRunning) {
+      pauseSim();
+    } else {
+      startSim();
+    }
+  }
+
+  function startSim() {
+    if (isRunning) return;
+    
+    const rA = document.getElementById('rateA');
+    const rB = document.getElementById('rateB');
+    if (!validateRateInput(rA) || !validateRateInput(rB)) return;
+
+    if (currentStep === 0) {
+      const inputA = parseFloat(document.getElementById('initA').value);
+      const inputB = parseFloat(document.getElementById('initB').value);
+      curA = isNaN(inputA) ? 100 : inputA;
+      curB = isNaN(inputB) ? 0 : inputB;
+      stageStartA = curA;
+      stageStartB = curB;
+      
+      updateDisplay();
+      if (chart) {
+        chart.data.datasets[0].data = [{x: 0, y: curA}];
+        chart.data.datasets[1].data = [{x: 0, y: curB}];
+        chart.update();
+      }
+    }
+
+    calculateAdaptivePacing();
+
+    isRunning = true;
+    simTimer = setInterval(stepRound, timerInterval);
+
+    const btn = document.getElementById('toggleBtn');
+    btn.innerText = 'Pause';
+    btn.className = 'btn-danger';
+  }
+
+  function pauseSim() {
+    isRunning = false;
+    if (simTimer) {
+      clearInterval(simTimer);
+      simTimer = null;
+    }
+
+    const btn = document.getElementById('toggleBtn');
+    btn.innerText = 'Start';
+    btn.className = 'btn-primary';
+  }
+
+  function clearSummary() {
+    if (confirm("Are you sure you want to clear all summary records?")) {
+      trialCount = 0;
+      summaryRecords = [];
+      document.querySelector('#summaryTable tbody').innerHTML = '';
+    }
+  }
+
+  function resetSim() {
+    pauseSim();
+    currentStep = 0;
+    curA = parseFloat(document.getElementById('initA').value);
+    if (isNaN(curA)) curA = 100;
+    curB = parseFloat(document.getElementById('initB').value);
+    if (isNaN(curB)) curB = 0;
+    
+    stageStartA = curA;
+    stageStartB = curB;
+    stageStartStep = 0;
+
+    stableCount = 0;
+    lastStateStr = "";
+    isCurrentlyEquilibrium = false;
+    actualEquilStep = 0;
+    equilSteps = [];
+    stressSteps = [];
+    
+    document.getElementById('th-log-Ae').innerHTML = 'End Amount<br>(A<sub>e</sub>)';
+    document.getElementById('th-log-Be').innerHTML = 'End Amount<br>(B<sub>e</sub>)';
+    document.getElementById('th-log-Ratio').innerHTML = 'End Ratio<br>(B<sub>e</sub> / A<sub>e</sub>)';
+
+    updateDisplay();
+    document.querySelector('#logTable tbody').innerHTML = '';
+    
+    if (chart) {
+      chart.data.datasets[0].data = [{x: 0, y: curA}];
+      chart.data.datasets[1].data = [{x: 0, y: curB}];
+      chart.update();
+    }
+    
+    setTimeout(syncHeights, 50);
+  }
+
+  function stepRound() {
+    const rateA = parseRate(document.getElementById('rateA').value);
+    const rateB = parseRate(document.getElementById('rateB').value);
+    const roundMode = document.getElementById('rounding').value;
+
+    let moveA_last = 0;
+    let moveB_last = 0;
+    let startA_last = 0;
+    let startB_last = 0;
+
+    for (let s = 0; s < stepMultiplier; s++) {
+      startA_last = curA;
+      startB_last = curB;
+
+      let moveA = curA * rateA;
+      let moveB = curB * rateB;
+
+      if (roundMode === 'floor') {
+        moveA = Math.floor(moveA);
+        moveB = Math.floor(moveB);
+      } else if (roundMode === 'round') {
+        moveA = Math.round(moveA);
+        moveB = Math.round(moveB);
+      }
+
+      moveA_last = moveA;
+      moveB_last = moveB;
+
+      const nextA = curA - moveA + moveB;
+      const nextB = curB - moveB + moveA;
+
+      currentStep++;
+      curA = nextA;
+      curB = nextB;
+
+      const currentStateStr = `${fmt(curA)}_${fmt(curB)}`;
+      if (currentStateStr === lastStateStr) {
+        stableCount++;
+        if (stableCount >= 5) {
+          isCurrentlyEquilibrium = true;
+          actualEquilStep = currentStep - 4;
+          
+          equilStartA = startA_last;
+          equilStartB = startB_last;
+          equilMoveA = moveA_last;
+          equilMoveB = moveB_last;
+          equilA = curA;
+          equilB = curB;
+
+          equilSteps.push(actualEquilStep);
+
+          document.getElementById('th-log-Ae').innerHTML = 'Eq. Amount<br>(A<sub>eq</sub>)';
+          document.getElementById('th-log-Be').innerHTML = 'Eq. Amount<br>(B<sub>eq</sub>)';
+          document.getElementById('th-log-Ratio').innerHTML = 'Eq. Ratio<br>(B<sub>eq</sub> / A<sub>eq</sub>)';
+
+          pauseSim();
+          saveToSummary();
+          break;
+        }
+      } else {
+        stableCount = 1;
+        lastStateStr = currentStateStr;
+        isCurrentlyEquilibrium = false;
+      }
+    }
+
+    const tbody = document.querySelector('#logTable tbody');
+
+    const ratio = curA === 0 ? "∞" : (curB / curA).toFixed(2);
+    const rowHTML = `<tr id="log-row-${currentStep}">
+      <td>${currentStep}</td>
+      <td>${fmt(startA_last)}</td>
+      <td>${fmt(moveA_last)}</td>
+      <td>${fmt(startB_last)}</td>
+      <td>${fmt(moveB_last)}</td>
+      <td>${fmt(curA)}</td>
+      <td>${fmt(curB)}</td>
+      <td>${ratio}</td>
+    </tr>`;
+    
+    tbody.insertAdjacentHTML('afterbegin', rowHTML);
+
+    if (isCurrentlyEquilibrium) {
+      const eqRow = document.getElementById(`log-row-${actualEquilStep}`);
+      if (eqRow) {
+        eqRow.classList.add('equil-highlight');
+      }
+    }
+
+    if (chart) {
+      chart.data.datasets[0].data.push({x: currentStep, y: parseFloat(curA.toFixed(2))});
+      chart.data.datasets[1].data.push({x: currentStep, y: parseFloat(curB.toFixed(2))});
+      chart.update();
+    }
+
+    updateDisplay();
+  }
+
+  function injectSpecies() {
+    const addA = parseFloat(document.getElementById('addA').value) || 0;
+    const addB = parseFloat(document.getElementById('addB').value) || 0;
+
+    const oldA = curA;
+    const oldB = curB;
+
+    curA += addA;
+    curB += addB;
+    if (curA < 0) curA = 0;
+    if (curB < 0) curB = 0;
+
+    stageStartA = curA;
+    stageStartB = curB;
+    stageStartStep = currentStep;
+
+    lastStateStr = "";
+    stableCount = 0;
+    isCurrentlyEquilibrium = false;
+
+    document.getElementById('th-log-Ae').innerHTML = 'End Amount<br>(A<sub>e</sub>)';
+    document.getElementById('th-log-Be').innerHTML = 'End Amount<br>(B<sub>e</sub>)';
+    document.getElementById('th-log-Ratio').innerHTML = 'End Ratio<br>(B<sub>e</sub> / A<sub>e</sub>)';
+
+    if (!stressSteps.includes(currentStep)) {
+      stressSteps.push(currentStep);
+    }
+
+    if (chart) {
+      const datasetA = chart.data.datasets[0].data;
+      const datasetB = chart.data.datasets[1].data;
+      
+      const lastPtA = datasetA[datasetA.length - 1];
+      if (!lastPtA || lastPtA.x !== currentStep) {
+        datasetA.push({x: currentStep, y: parseFloat(oldA.toFixed(2))});
+        datasetB.push({x: currentStep, y: parseFloat(oldB.toFixed(2))});
+      }
+
+      datasetA.push({x: currentStep, y: parseFloat(curA.toFixed(2))});
+      datasetB.push({x: currentStep, y: parseFloat(curB.toFixed(2))});
+      
+      chart.update();
+    }
+
+    const rowHTML = `<tr style="background:#feebc8; font-weight:bold;">
+      <td colspan="8">⚡ [Step ${currentStep}] Species Stress Applied: ΔA = ${addA >= 0 ? '+'+addA : addA}, ΔB = ${addB >= 0 ? '+'+addB : addB} (New Start A: ${fmt(curA)}, B: ${fmt(curB)})</td>
+    </tr>`;
+    
+    const tbody = document.querySelector('#logTable tbody');
+    tbody.insertAdjacentHTML('afterbegin', rowHTML);
+
+    updateDisplay();
+    calculateAdaptivePacing();
+
+    if (!isRunning) startSim();
+  }
+
+  function updateRates() {
+    const newAInput = document.getElementById('newRateA');
+    const newBInput = document.getElementById('newRateB');
+
+    if (!validateRateInput(newAInput) || !validateRateInput(newBInput)) return;
+
+    document.getElementById('rateA').value = newAInput.value;
+    document.getElementById('rateB').value = newBInput.value;
+
+    stageStartA = curA;
+    stageStartB = curB;
+    stageStartStep = currentStep;
+
+    lastStateStr = "";
+    stableCount = 0;
+    isCurrentlyEquilibrium = false;
+
+    document.getElementById('th-log-Ae').innerHTML = 'End Amount<br>(A<sub>e</sub>)';
+    document.getElementById('th-log-Be').innerHTML = 'End Amount<br>(B<sub>e</sub>)';
+    document.getElementById('th-log-Ratio').innerHTML = 'End Ratio<br>(B<sub>e</sub> / A<sub>e</sub>)';
+
+    if (!stressSteps.includes(currentStep)) {
+      stressSteps.push(currentStep);
+    }
+
+    const rowHTML = `<tr style="background:#c6f6d5; font-weight:bold;">
+      <td colspan="8">🌡️ [Step ${currentStep}] Rate Stress Applied: Forward k_f = ${newAInput.value}, Reverse k_r = ${newBInput.value}</td>
+    </tr>`;
+    
+    const tbody = document.querySelector('#logTable tbody');
+    tbody.insertAdjacentHTML('afterbegin', rowHTML);
+
+    if (chart) chart.update();
+
+    calculateAdaptivePacing();
+
+    if (!isRunning) startSim();
+  }
+
+  function updateDisplay() {
+    document.getElementById('dispRound').innerText = currentStep;
+    document.getElementById('dispA').innerText = fmt(curA);
+    document.getElementById('dispB').innerText = fmt(curB);
+    document.getElementById('dispRatio').innerText = curA === 0 ? "∞" : (curB / curA).toFixed(2);
+  }
+
+  function saveToSummary() {
+    trialCount++;
+    const kfStr = document.getElementById('rateA').value;
+    const krStr = document.getElementById('rateB').value;
+    
+    const initA = fmt(stageStartA);
+    const initB = fmt(stageStartB);
+    
+    const ratioExp = curA === 0 ? "∞" : (curB / curA).toFixed(2);
+    const deltaSteps = actualEquilStep - stageStartStep;
+
+    const record = {
+      trialId: trialCount,
+      initA: initA,
+      initB: initB,
+      kfStr: kfStr,
+      krStr: krStr,
+      eqA: fmt(curA),
+      eqB: fmt(curB),
+      ratioExp: ratioExp,
+      deltaSteps: deltaSteps,
+      currentStep: currentStep,
+      curA: curA,
+      curB: curB,
+      logTableHTML: document.querySelector('#logTable tbody').innerHTML,
+      chartDataA: chart ? JSON.parse(JSON.stringify(chart.data.datasets[0].data)) : [],
+      chartDataB: chart ? JSON.parse(JSON.stringify(chart.data.datasets[1].data)) : [],
+      equilSteps: [...equilSteps],
+      stressSteps: [...stressSteps]
+    };
+
+    summaryRecords.push(record);
+    renderSummaryTable();
+  }
+
+  function renderSummaryTable() {
+    const tbody = document.querySelector('#summaryTable tbody');
+    tbody.innerHTML = '';
+
+    summaryRecords.slice().reverse().forEach((record) => {
+      const idx = record.trialId - 1;
+      const rowHTML = `<tr>
+        <td>${record.trialId}</td>
+        <td>${record.initA}</td>
+        <td>${record.initB}</td>
+        <td>${record.kfStr}</td>
+        <td>${record.krStr}</td>
+        <td>${record.eqA}</td>
+        <td>${record.eqB}</td>
+        <td>${record.ratioExp}</td>
+        <td>${record.deltaSteps}</td>
+        <td>
+          <div class="action-btn-group-vertical">
+            <button class="btn-action btn-setup" onclick="copySetup('${record.kfStr}', '${record.krStr}', ${record.initA}, ${record.initB})">📋 Copy Initial Condition</button>
+            <button class="btn-action btn-eq" onclick="loadEqAsInitial('${record.kfStr}', '${record.krStr}', ${record.eqA}, ${record.eqB})">🔄 Set Eq. Condition as Initial</button>
+            <button class="btn-action btn-restore" onclick="restoreTrialProgress(${idx})">⏪ Restore Progress</button>
+          </div>
+        </td>
+      </tr>`;
+      tbody.insertAdjacentHTML('beforeend', rowHTML);
+    });
+  }
+
+  function copySetup(kf, kr, initA, initB) {
+    document.getElementById('rateA').value = kf;
+    document.getElementById('rateB').value = kr;
+    document.getElementById('initA').value = initA;
+    document.getElementById('initB').value = initB;
+  }
+
+  function loadEqAsInitial(kf, kr, eqA, eqB) {
+    document.getElementById('rateA').value = kf;
+    document.getElementById('rateB').value = kr;
+    document.getElementById('initA').value = eqA;
+    document.getElementById('initB').value = eqB;
+  }
+
+  function restoreTrialProgress(recordIndex) {
+    const record = summaryRecords[recordIndex];
+    if (!record) return;
+
+    pauseSim();
+
+    copySetup(record.kfStr, record.krStr, record.initA, record.initB);
+
+    currentStep = record.currentStep;
+    curA = record.curA;
+    curB = record.curB;
+    equilSteps = [...record.equilSteps];
+    stressSteps = [...record.stressSteps];
+
+    lastStateStr = "";
+    stableCount = 0;
+    isCurrentlyEquilibrium = true;
+
+    document.querySelector('#logTable tbody').innerHTML = record.logTableHTML;
+
+    if (chart) {
+      chart.data.datasets[0].data = JSON.parse(JSON.stringify(record.chartDataA));
+      chart.data.datasets[1].data = JSON.parse(JSON.stringify(record.chartDataB));
+      chart.update();
+    }
+
+    updateDisplay();
+  }
+
+  function exportLogToExcel() {
+    const table = document.getElementById('logTable');
+    const rows = table.querySelectorAll('tr');
+    
+    if (rows.length <= 1) {
+      alert("No data log to export yet!");
+      return;
+    }
+
+    let csvContent = "";
+    
+    rows.forEach((row) => {
+      const cols = row.querySelectorAll('th, td');
+      const rowData = [];
+      cols.forEach(col => {
+        let text = col.innerText.replace(/\n/g, ' ').trim();
+        if (text.includes(',') || text.includes('"')) {
+          text = `"` + text.replace(/"/g, '""') + `"`;
+        }
+        rowData.push(text);
+      });
+      csvContent += rowData.join(',') + '\r\n';
+    });
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Equilibrium_Step_Log_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  function exportSummaryToExcel() {
+    const table = document.getElementById('summaryTable');
+    const rows = table.querySelectorAll('tr');
+    
+    if (rows.length <= 1) {
+      alert("No summary data to export yet!");
+      return;
+    }
+
+    let csvContent = "";
+    
+    rows.forEach((row, rowIndex) => {
+      const cols = row.querySelectorAll('th, td');
+      const rowData = [];
+      cols.forEach((col, colIndex) => {
+        if (colIndex === 9) return;
+
+        let text = col.innerText.replace(/\n/g, ' ').trim();
+
+        if (rowIndex > 0 && text.includes('/')) {
+          text = `="` + text + `"`;
+        } else if (text.includes(',') || text.includes('"')) {
+          text = `"` + text.replace(/"/g, '""') + `"`;
+        }
+
+        rowData.push(text);
+      });
+      csvContent += rowData.join(',') + '\r\n';
+    });
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Equilibrium_Summary_Log_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  resetSim();
+</script>
+
+</body>
+</html>
