@@ -32,7 +32,7 @@
     max-width: 1200px;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: 280px 1fr;
+    grid-template-columns: 290px 1fr;
     gap: 20px;
     align-items: start;
   }
@@ -55,7 +55,17 @@
   h2 { font-size: 1.05rem; color: var(--primary); margin-top: 0; border-bottom: 2px solid var(--border); padding-bottom: 6px; }
   
   .form-group { margin-bottom: 12px; }
-  label { display: block; font-size: 0.85rem; font-weight: bold; margin-bottom: 4px; color: var(--text); }
+  
+  label { font-size: 0.85rem; font-weight: bold; color: var(--text); }
+  .sub-label { font-size: 0.75rem; color: #4a5568; margin-bottom: 2px; display: block; }
+  
+  .label-with-tooltip {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 4px;
+  }
+
   input, select {
     width: 100%;
     padding: 8px;
@@ -84,7 +94,108 @@
   .btn-secondary { background: #edf2f7; color: #4a5568; }
   .btn-secondary:hover { background: #e2e8f0; }
 
-  /* 状态看板 */
+  /* 问号按钮：严格控制正圆形、清除默认 padding、靠右对齐 */
+  .icon-tooltip-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    padding: 0 !important;
+    border: none;
+    background: transparent;
+    border-radius: 50% !important;   /* 确保绝对正圆 */
+    cursor: pointer;
+    color: #718096;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    flex: 0 0 22px;                 /* 防止被 flex 容器挤压或拉伸 */
+    margin-left: auto;              /* 稳稳靠右对齐 */
+    box-sizing: border-box;
+  }
+
+  .icon-tooltip-btn .icon {
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 1;
+  }
+
+  .icon-tooltip-btn:hover,
+  .icon-tooltip-btn:focus-visible {
+    background-color: rgba(0, 0, 0, 0.08);
+    color: #1a202c;
+    outline: none;
+  }
+
+  .icon-tooltip-btn .tooltip-text {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #1a202c;
+    color: #ffffff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: normal;
+    line-height: 1.3;
+    white-space: nowrap;
+    pointer-events: none;
+    
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+  }
+
+  .icon-tooltip-btn .tooltip-text::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 4px;
+    border-style: solid;
+    border-color: #1a202c transparent transparent transparent;
+  }
+
+  .icon-tooltip-btn:hover .tooltip-text,
+  .icon-tooltip-btn:focus-visible .tooltip-text {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .action-btn-group-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 0;
+  }
+
+  .btn-action {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-weight: bold;
+    color: #ffffff;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+    width: 100%;
+    text-align: center;
+    box-sizing: border-box;
+  }
+  .btn-action:hover { opacity: 0.85; }
+  .btn-setup { background-color: #4a5568; }
+  .btn-eq { background-color: #2f855a; }
+  .btn-restore { background-color: #dd6b20; }
+
   .status-board {
     display: flex;
     justify-content: space-around;
@@ -93,15 +204,16 @@
     border-radius: 6px;
     margin-bottom: 15px;
     text-align: center;
+    flex-shrink: 0;
   }
   .status-board .val { font-size: 1.6rem; font-weight: bold; color: #2b6cb0; }
   .status-board .lbl { font-size: 0.8rem; color: #4a5568; }
 
   .chart-container { height: 200px; margin-bottom: 15px; flex-shrink: 0; }
   
-  /* 表格包裹层：弹性伸缩并内部滚动 */
   .table-wrapper {
     flex: 1;
+    min-height: 120px;
     overflow-y: auto;
     border: 1px solid var(--border);
     border-radius: 4px;
@@ -151,32 +263,54 @@
     <h2>1. Initial Setup</h2>
     
     <div class="form-group">
-      <label>Initial Amount:</label>
+      <div class="label-with-tooltip">
+        <label>Initial Amounts:</label>
+        <button type="button" class="icon-tooltip-btn" aria-label="Initial Amounts 提示">
+          <span class="icon">?</span>
+          <span class="tooltip-text">Enter positive numbers for initial amounts</span>
+        </button>
+      </div>
       <div class="inline-inputs" style="margin-top: 4px;">
         <div>
-          <label style="font-size: 0.75rem; color: #4a5568;">A<sub>0</sub></label>
-          <input type="number" id="initA" value="100" placeholder="A0">
+          <span class="sub-label">A<sub>0</sub></span>
+          <input type="number" id="initA" value="100" placeholder="A0" onchange="resetSim()">
         </div>
         <div>
-          <label style="font-size: 0.75rem; color: #4a5568;">B<sub>0</sub></label>
-          <input type="number" id="initB" value="0" placeholder="B0">
+          <span class="sub-label">B<sub>0</sub></span>
+          <input type="number" id="initB" value="0" placeholder="B0" onchange="resetSim()">
         </div>
       </div>
     </div>
 
     <div class="form-group">
-      <label>Forward Rate Constant (<i>k</i><sub>f</sub> &lt; 1):</label>
-      <input type="text" id="rateA" value="1/30" onchange="validateRateInput(this)">
-    </div>
-    
-    <div class="form-group">
-      <label>Reverse Rate Constant (<i>k</i><sub>r</sub> &lt; 1):</label>
-      <input type="text" id="rateB" value="1/40" onchange="validateRateInput(this)">
+      <div class="label-with-tooltip">
+        <label>Rate Constants:</label>
+        <button type="button" class="icon-tooltip-btn" aria-label="Rate Constants 提示">
+          <span class="icon">?</span>
+          <span class="tooltip-text">Enter positive number < 1 (decimals like 0.05 or fractions like 1/30)</span>
+        </button>
+      </div>
+      <div class="inline-inputs" style="margin-top: 4px;">
+        <div>
+          <span class="sub-label">Forward (<i>k</i><sub>f</sub>)</span>
+          <input type="text" id="rateA" value="1/30" onchange="validateRateInput(this); resetSim();">
+        </div>
+        <div>
+          <span class="sub-label">Reverse (<i>k</i><sub>r</sub>)</span>
+          <input type="text" id="rateB" value="1/40" onchange="validateRateInput(this); resetSim();">
+        </div>
+      </div>
     </div>
 
     <div class="form-group">
-      <label>Calculation Mode:</label>
-      <select id="rounding">
+      <div class="label-with-tooltip">
+        <label>Calculation Mode:</label>
+        <button type="button" class="icon-tooltip-btn" aria-label="Calculation Mode 提示">
+          <span class="icon">?</span>
+          <span class="tooltip-text">Continuous uses exact floats; Discrete rounds values each step</span>
+        </button>
+      </div>
+      <select id="rounding" onchange="resetSim()">
         <option value="none" selected>Continuous (Exact Decimals)</option>
         <option value="floor">Discrete (Floor - Round Down)</option>
         <option value="round">Discrete (Nearest Integer)</option>
@@ -184,8 +318,14 @@
     </div>
 
     <div class="form-group">
-      <label>Target Eq. Duration:</label>
-      <select id="targetTimeSelect">
+      <div class="label-with-tooltip">
+        <label>Target Eq. Duration:</label>
+        <button type="button" class="icon-tooltip-btn" aria-label="Target Duration 提示">
+          <span class="icon">?</span>
+          <span class="tooltip-text">Automatically adjusts step speed to reach equilibrium within target time</span>
+        </button>
+      </div>
+      <select id="targetTimeSelect" onchange="calculateAdaptivePacing();">
         <option value="20" selected>Max 20 Seconds (Adaptive)</option>
         <option value="10">Max 10 Seconds (Faster)</option>
         <option value="0">Normal Speed (1x)</option>
@@ -199,32 +339,42 @@
 
     <h2 style="margin-top: 20px;">2. Stress</h2>
     
-    <!-- 1. 改变物种浓度 -->
     <div class="control-box">
-      <label style="color: #c05621;">⚡ Inject / Remove Species:</label>
+      <div class="label-with-tooltip">
+        <label style="color: #c05621;">⚡ Inject / Remove Species:</label>
+        <button type="button" class="icon-tooltip-btn" aria-label="Inject Species 提示">
+          <span class="icon">?</span>
+          <span class="tooltip-text">Positive values add species; negative values remove species</span>
+        </button>
+      </div>
       <div class="inline-inputs" style="margin-top: 6px;">
         <div>
-          <label style="font-size: 0.75rem; color: #7b341e;">ΔA</label>
+          <span class="sub-label" style="color: #7b341e;">ΔA</span>
           <input type="number" id="addA" value="20" placeholder="ΔA">
         </div>
         <div>
-          <label style="font-size: 0.75rem; color: #7b341e;">ΔB</label>
+          <span class="sub-label" style="color: #7b341e;">ΔB</span>
           <input type="number" id="addB" value="0" placeholder="ΔB">
         </div>
       </div>
       <button class="btn-secondary" style="width: 100%; margin-top: 8px; background: #feebc8; color: #7b341e;" onclick="injectSpecies()">Apply</button>
     </div>
 
-    <!-- 2. 改变反应速率常数 -->
     <div class="control-box" style="background: #f0fff4; border-color: #c6f6d5;">
-      <label style="color: #276749;">🌡️ Change Rate Constants:</label>
+      <div class="label-with-tooltip">
+        <label style="color: #276749;">🌡️ Change Rate Constants:</label>
+        <button type="button" class="icon-tooltip-btn" aria-label="Change Rate Constants 提示">
+          <span class="icon">?</span>
+          <span class="tooltip-text">Enter new rate constants (< 1) for reaction steps</span>
+        </button>
+      </div>
       <div class="inline-inputs" style="margin-top: 6px;">
         <div>
-          <label style="font-size: 0.75rem; color: #22543d;">Forward</label>
+          <span class="sub-label" style="color: #22543d;">Forward (<i>k</i><sub>f</sub>)</span>
           <input type="text" id="newRateA" value="1/15" placeholder="New k_f" onchange="validateRateInput(this)">
         </div>
         <div>
-          <label style="font-size: 0.75rem; color: #22543d;">Reverse</label>
+          <span class="sub-label" style="color: #22543d;">Reverse (<i>k</i><sub>r</sub>)</span>
           <input type="text" id="newRateB" value="1/20" placeholder="New k_r" onchange="validateRateInput(this)">
         </div>
       </div>
@@ -262,7 +412,7 @@
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-shrink: 0;">
       <h2 style="margin: 0; border: none;">Step-by-Step Data Log</h2>
       <div style="display: flex; gap: 8px;">
-        <button class="btn-primary" style="flex: none; padding: 5px 12px; font-size: 0.8rem;" onclick="exportLogToExcel()">📥 Export Log to Excel</button>
+        <button class="btn-primary" style="flex: none; padding: 5px 12px; font-size: 0.8rem;" onclick="exportLogToExcel()">📥 Export to Excel</button>
       </div>
     </div>
     
@@ -288,24 +438,28 @@
 
   <!-- 汇总表 -->
   <div class="card summary-card">
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 6px; margin-bottom: 12px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border); padding-bottom: 6px; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
       <h2 style="margin: 0; border: none;">📊 Summary Log</h2>
-      <button class="btn-primary" style="flex: none; padding: 6px 14px; font-size: 0.82rem;" onclick="exportSummaryToExcel()">📥 Export Summary to Excel</button>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; color: #c53030; border-color: #feb2b2; white-space: nowrap;" onclick="clearSummary()">🗑️ Clear</button>
+        <button class="btn-primary" style="padding: 6px 12px; font-size: 0.8rem; white-space: nowrap;" onclick="exportSummaryToExcel()">📥 Export to Excel</button>
+      </div>
     </div>
     
-    <div class="table-wrapper" style="height: 200px; flex: none;">
+    <div class="table-wrapper" style="height: 250px; flex: none;">
       <table id="summaryTable">
         <thead>
           <tr>
-            <th style="width: 5%;">#</th>
-            <th style="width: 11%;">Initial Amount<br>(A<sub>0</sub>)</th>
-            <th style="width: 11%;">Initial Amount<br>(B<sub>0</sub>)</th>
-            <th style="width: 13%;">Forward Rate Constant<br>(<i>k</i><sub>f</sub>)</th>
-            <th style="width: 13%;">Reverse Rate Constant<br>(<i>k</i><sub>r</sub>)</th>
-            <th style="width: 12%;">Eq. Amount<br>(A<sub>eq</sub>)</th>
-            <th style="width: 12%;">Eq. Amount<br>(B<sub>eq</sub>)</th>
-            <th style="width: 11%;">Eq. Ratio<br>(B<sub>eq</sub> / A<sub>eq</sub>)</th>
-            <th style="width: 12%;">Steps to Eq.</th>
+            <th style="width: 3%;">#</th>
+            <th style="width: 8%;">Initial Amount<br>(A<sub>0</sub>)</th>
+            <th style="width: 8%;">Initial Amount<br>(B<sub>0</sub>)</th>
+            <th style="width: 10%;">Forward Rate Constant<br>(<i>k</i><sub>f</sub>)</th>
+            <th style="width: 10%;">Reverse Rate Constant<br>(<i>k</i><sub>r</sub>)</th>
+            <th style="width: 10%;">Eq. Amount<br>(A<sub>eq</sub>)</th>
+            <th style="width: 10%;">Eq. Amount<br>(B<sub>eq</sub>)</th>
+            <th style="width: 10%;">Eq. Ratio<br>(B<sub>eq</sub> / A<sub>eq</sub>)</th>
+            <th style="width: 9%;">Steps to Eq.</th>
+            <th style="width: 22%;">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -332,12 +486,13 @@
   let curA = 100;
   let curB = 0;
   
-  // 记录当前阶段起点状态与起始步数
   let stageStartA = 100;
   let stageStartB = 0;
   let stageStartStep = 0;
 
   let trialCount = 0;
+  let summaryRecords = [];
+
   let simTimer = null;
   let isRunning = false;
 
@@ -360,9 +515,7 @@
 
   let chart = null;
 
-  if (typeof Chart === 'undefined') {
-    // 降级处理
-  } else {
+  if (typeof Chart !== 'undefined') {
     const annotationsPlugin = {
       id: 'annotationsPlugin',
       afterDraw: (chartInstance) => {
@@ -478,6 +631,10 @@
     if (targetSeconds <= 0 || (rateA + rateB) >= 1) {
       stepMultiplier = 1;
       timerInterval = 200;
+      if (isRunning) {
+        clearInterval(simTimer);
+        simTimer = setInterval(stepRound, timerInterval);
+      }
       return;
     }
 
@@ -500,6 +657,11 @@
     } else {
       stepMultiplier = Math.ceil(estimatedSteps / targetFrames);
       timerInterval = 100;
+    }
+
+    if (isRunning) {
+      clearInterval(simTimer);
+      simTimer = setInterval(stepRound, timerInterval);
     }
   }
 
@@ -556,6 +718,14 @@
     btn.className = 'btn-primary';
   }
 
+  function clearSummary() {
+    if (confirm("Are you sure you want to clear all summary records?")) {
+      trialCount = 0;
+      summaryRecords = [];
+      document.querySelector('#summaryTable tbody').innerHTML = '';
+    }
+  }
+
   function resetSim() {
     pauseSim();
     currentStep = 0;
@@ -581,13 +751,14 @@
 
     updateDisplay();
     document.querySelector('#logTable tbody').innerHTML = '';
-    document.querySelector('#summaryTable tbody').innerHTML = '';
     
     if (chart) {
       chart.data.datasets[0].data = [{x: 0, y: curA}];
       chart.data.datasets[1].data = [{x: 0, y: curB}];
       chart.update();
     }
+    
+    setTimeout(syncHeights, 50);
   }
 
   function stepRound() {
@@ -632,7 +803,6 @@
           isCurrentlyEquilibrium = true;
           actualEquilStep = currentStep - 4;
           
-          // 记录精确平衡点那一刻的状态数据，以便跳步时补齐渲染
           equilStartA = startA_last;
           equilStartB = startB_last;
           equilMoveA = moveA_last;
@@ -658,22 +828,6 @@
     }
 
     const tbody = document.querySelector('#logTable tbody');
-
-    // 【方案 B】如果达成平衡，且真实平衡步数被跳过了，强制补齐并插入该平衡步数行
-    if (isCurrentlyEquilibrium && !document.getElementById(`log-row-${actualEquilStep}`)) {
-      const eqRatio = equilA === 0 ? "∞" : (equilB / equilA).toFixed(2);
-      const eqRowHTML = `<tr id="log-row-${actualEquilStep}" class="equil-highlight">
-        <td>${actualEquilStep}</td>
-        <td>${fmt(equilStartA)}</td>
-        <td>${fmt(equilMoveA)}</td>
-        <td>${fmt(equilStartB)}</td>
-        <td>${fmt(equilMoveB)}</td>
-        <td>${fmt(equilA)}</td>
-        <td>${fmt(equilB)}</td>
-        <td>${eqRatio}</td>
-      </tr>`;
-      tbody.insertAdjacentHTML('afterbegin', eqRowHTML);
-    }
 
     const ratio = curA === 0 ? "∞" : (curB / curA).toFixed(2);
     const rowHTML = `<tr id="log-row-${currentStep}">
@@ -709,6 +863,9 @@
     const addA = parseFloat(document.getElementById('addA').value) || 0;
     const addB = parseFloat(document.getElementById('addB').value) || 0;
 
+    const oldA = curA;
+    const oldB = curB;
+
     curA += addA;
     curB += addB;
     if (curA < 0) curA = 0;
@@ -718,6 +875,7 @@
     stageStartB = curB;
     stageStartStep = currentStep;
 
+    lastStateStr = "";
     stableCount = 0;
     isCurrentlyEquilibrium = false;
 
@@ -730,8 +888,19 @@
     }
 
     if (chart) {
-      chart.data.datasets[0].data.push({x: currentStep, y: parseFloat(curA.toFixed(2))});
-      chart.data.datasets[1].data.push({x: currentStep, y: parseFloat(curB.toFixed(2))});
+      const datasetA = chart.data.datasets[0].data;
+      const datasetB = chart.data.datasets[1].data;
+      
+      const lastPtA = datasetA[datasetA.length - 1];
+      if (!lastPtA || lastPtA.x !== currentStep) {
+        datasetA.push({x: currentStep, y: parseFloat(oldA.toFixed(2))});
+        datasetB.push({x: currentStep, y: parseFloat(oldB.toFixed(2))});
+      }
+
+      datasetA.push({x: currentStep, y: parseFloat(curA.toFixed(2))});
+      datasetB.push({x: currentStep, y: parseFloat(curB.toFixed(2))});
+      
+      chart.update();
     }
 
     const rowHTML = `<tr style="background:#feebc8; font-weight:bold;">
@@ -742,7 +911,7 @@
     tbody.insertAdjacentHTML('afterbegin', rowHTML);
 
     updateDisplay();
-    if (chart) chart.update();
+    calculateAdaptivePacing();
 
     if (!isRunning) startSim();
   }
@@ -760,6 +929,7 @@
     stageStartB = curB;
     stageStartStep = currentStep;
 
+    lastStateStr = "";
     stableCount = 0;
     isCurrentlyEquilibrium = false;
 
@@ -779,6 +949,8 @@
     tbody.insertAdjacentHTML('afterbegin', rowHTML);
 
     if (chart) chart.update();
+
+    calculateAdaptivePacing();
 
     if (!isRunning) startSim();
   }
@@ -801,19 +973,99 @@
     const ratioExp = curA === 0 ? "∞" : (curB / curA).toFixed(2);
     const deltaSteps = actualEquilStep - stageStartStep;
 
-    const rowHTML = `<tr>
-      <td>${trialCount}</td>
-      <td>${initA}</td>
-      <td>${initB}</td>
-      <td>${kfStr}</td>
-      <td>${krStr}</td>
-      <td>${fmt(curA)}</td>
-      <td>${fmt(curB)}</td>
-      <td>${ratioExp}</td>
-      <td>${deltaSteps}</td>
-    </tr>`;
+    const record = {
+      trialId: trialCount,
+      initA: initA,
+      initB: initB,
+      kfStr: kfStr,
+      krStr: krStr,
+      eqA: fmt(curA),
+      eqB: fmt(curB),
+      ratioExp: ratioExp,
+      deltaSteps: deltaSteps,
+      currentStep: currentStep,
+      curA: curA,
+      curB: curB,
+      logTableHTML: document.querySelector('#logTable tbody').innerHTML,
+      chartDataA: chart ? JSON.parse(JSON.stringify(chart.data.datasets[0].data)) : [],
+      chartDataB: chart ? JSON.parse(JSON.stringify(chart.data.datasets[1].data)) : [],
+      equilSteps: [...equilSteps],
+      stressSteps: [...stressSteps]
+    };
 
-    document.querySelector('#summaryTable tbody').insertAdjacentHTML('afterbegin', rowHTML);
+    summaryRecords.push(record);
+    renderSummaryTable();
+  }
+
+  function renderSummaryTable() {
+    const tbody = document.querySelector('#summaryTable tbody');
+    tbody.innerHTML = '';
+
+    summaryRecords.slice().reverse().forEach((record) => {
+      const idx = record.trialId - 1;
+      const rowHTML = `<tr>
+        <td>${record.trialId}</td>
+        <td>${record.initA}</td>
+        <td>${record.initB}</td>
+        <td>${record.kfStr}</td>
+        <td>${record.krStr}</td>
+        <td>${record.eqA}</td>
+        <td>${record.eqB}</td>
+        <td>${record.ratioExp}</td>
+        <td>${record.deltaSteps}</td>
+        <td>
+          <div class="action-btn-group-vertical">
+            <button class="btn-action btn-setup" onclick="copySetup('${record.kfStr}', '${record.krStr}', ${record.initA}, ${record.initB})">📋 Copy Initial Condition</button>
+            <button class="btn-action btn-eq" onclick="loadEqAsInitial('${record.kfStr}', '${record.krStr}', ${record.eqA}, ${record.eqB})">🔄 Set Eq. Condition as Initial</button>
+            <button class="btn-action btn-restore" onclick="restoreTrialProgress(${idx})">⏪ Restore Progress</button>
+          </div>
+        </td>
+      </tr>`;
+      tbody.insertAdjacentHTML('beforeend', rowHTML);
+    });
+  }
+
+  function copySetup(kf, kr, initA, initB) {
+    document.getElementById('rateA').value = kf;
+    document.getElementById('rateB').value = kr;
+    document.getElementById('initA').value = initA;
+    document.getElementById('initB').value = initB;
+  }
+
+  function loadEqAsInitial(kf, kr, eqA, eqB) {
+    document.getElementById('rateA').value = kf;
+    document.getElementById('rateB').value = kr;
+    document.getElementById('initA').value = eqA;
+    document.getElementById('initB').value = eqB;
+  }
+
+  function restoreTrialProgress(recordIndex) {
+    const record = summaryRecords[recordIndex];
+    if (!record) return;
+
+    pauseSim();
+
+    copySetup(record.kfStr, record.krStr, record.initA, record.initB);
+
+    currentStep = record.currentStep;
+    curA = record.curA;
+    curB = record.curB;
+    equilSteps = [...record.equilSteps];
+    stressSteps = [...record.stressSteps];
+
+    lastStateStr = "";
+    stableCount = 0;
+    isCurrentlyEquilibrium = true;
+
+    document.querySelector('#logTable tbody').innerHTML = record.logTableHTML;
+
+    if (chart) {
+      chart.data.datasets[0].data = JSON.parse(JSON.stringify(record.chartDataA));
+      chart.data.datasets[1].data = JSON.parse(JSON.stringify(record.chartDataB));
+      chart.update();
+    }
+
+    updateDisplay();
   }
 
   function exportLogToExcel() {
@@ -864,7 +1116,9 @@
     rows.forEach((row, rowIndex) => {
       const cols = row.querySelectorAll('th, td');
       const rowData = [];
-      cols.forEach(col => {
+      cols.forEach((col, colIndex) => {
+        if (colIndex === 9) return;
+
         let text = col.innerText.replace(/\n/g, ' ').trim();
 
         if (rowIndex > 0 && text.includes('/')) {
