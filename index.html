@@ -273,11 +273,11 @@
       <div class="inline-inputs" style="margin-top: 4px;">
         <div>
           <span class="sub-label">A<sub>0</sub></span>
-          <input type="number" id="initA" value="100" placeholder="A0" onchange="resetSim()">
+          <input type="number" id="initA" value="" onchange="resetSim()">
         </div>
         <div>
           <span class="sub-label">B<sub>0</sub></span>
-          <input type="number" id="initB" value="0" placeholder="B0" onchange="resetSim()">
+          <input type="number" id="initB" value="" onchange="resetSim()">
         </div>
       </div>
     </div>
@@ -287,17 +287,17 @@
         <label>Rate Constants:</label>
         <button type="button" class="icon-tooltip-btn" aria-label="Rate Constants 提示">
           <span class="icon">?</span>
-          <span class="tooltip-text">Enter positive number < 1 (decimals like 0.05 or fractions like 1/30)</span>
+          <span class="tooltip-text">Enter positive number &lt; 1 (decimals like 0.05 or fractions like 1/30)</span>
         </button>
       </div>
       <div class="inline-inputs" style="margin-top: 4px;">
         <div>
           <span class="sub-label">Forward (<i>k</i><sub>f</sub>)</span>
-          <input type="text" id="rateA" value="1/30" onchange="validateRateInput(this); resetSim();">
+          <input type="text" id="rateA" value="" onchange="validateRateInput(this); resetSim();">
         </div>
         <div>
           <span class="sub-label">Reverse (<i>k</i><sub>r</sub>)</span>
-          <input type="text" id="rateB" value="1/40" onchange="validateRateInput(this); resetSim();">
+          <input type="text" id="rateB" value="" onchange="validateRateInput(this); resetSim();">
         </div>
       </div>
     </div>
@@ -326,8 +326,8 @@
         </button>
       </div>
       <select id="targetTimeSelect" onchange="calculateAdaptivePacing();">
-        <option value="20" selected>Max 20 Seconds (Adaptive)</option>
-        <option value="10">Max 10 Seconds (Faster)</option>
+        <option value="10" selected>Max 10 Seconds (Faster)</option>
+        <option value="20">Max 20 Seconds (Adaptive)</option>
         <option value="0">Normal Speed (1x)</option>
       </select>
     </div>
@@ -350,11 +350,11 @@
       <div class="inline-inputs" style="margin-top: 6px;">
         <div>
           <span class="sub-label" style="color: #7b341e;">ΔA</span>
-          <input type="number" id="addA" value="20" placeholder="ΔA">
+          <input type="number" id="addA" value="">
         </div>
         <div>
           <span class="sub-label" style="color: #7b341e;">ΔB</span>
-          <input type="number" id="addB" value="0" placeholder="ΔB">
+          <input type="number" id="addB" value="">
         </div>
       </div>
       <button class="btn-secondary" style="width: 100%; margin-top: 8px; background: #feebc8; color: #7b341e;" onclick="injectSpecies()">Apply</button>
@@ -365,17 +365,17 @@
         <label style="color: #276749;">🌡️ Change Rate Constants:</label>
         <button type="button" class="icon-tooltip-btn" aria-label="Change Rate Constants 提示">
           <span class="icon">?</span>
-          <span class="tooltip-text">Enter new rate constants (< 1) for reaction steps</span>
+          <span class="tooltip-text">Enter new rate constants (&lt; 1) for reaction steps</span>
         </button>
       </div>
       <div class="inline-inputs" style="margin-top: 6px;">
         <div>
           <span class="sub-label" style="color: #22543d;">Forward (<i>k</i><sub>f</sub>)</span>
-          <input type="text" id="newRateA" value="1/15" placeholder="New k_f" onchange="validateRateInput(this)">
+          <input type="text" id="newRateA" value="" onchange="validateRateInput(this)">
         </div>
         <div>
           <span class="sub-label" style="color: #22543d;">Reverse (<i>k</i><sub>r</sub>)</span>
-          <input type="text" id="newRateB" value="1/20" placeholder="New k_r" onchange="validateRateInput(this)">
+          <input type="text" id="newRateB" value="" onchange="validateRateInput(this)">
         </div>
       </div>
       <button class="btn-secondary" style="width: 100%; margin-top: 8px; background: #c6f6d5; color: #22543d;" onclick="updateRates()">Apply</button>
@@ -391,7 +391,7 @@
       </div>
       <div>
         <div class="lbl">Reactant A</div>
-        <div class="val" id="dispA">100.00</div>
+        <div class="val" id="dispA">0.00</div>
       </div>
       <div>
         <div class="lbl">Product B</div>
@@ -483,10 +483,10 @@
   window.addEventListener('resize', syncHeights);
 
   let currentStep = 0;
-  let curA = 100;
+  let curA = 0;
   let curB = 0;
   
-  let stageStartA = 100;
+  let stageStartA = 0;
   let stageStartB = 0;
   let stageStartStep = 0;
 
@@ -552,7 +552,7 @@
         datasets: [
           { 
             label: 'Reactant A', 
-            data: [{x: 0, y: 100}], 
+            data: [{x: 0, y: 0}], 
             borderColor: '#3182ce', 
             backgroundColor: '#3182ce', 
             showLine: true,
@@ -597,6 +597,7 @@
   }
 
   function parseRate(input) {
+    if (!input || input.trim() === '') return NaN;
     let val = 0;
     if (typeof input === 'number') {
       val = input;
@@ -610,10 +611,13 @@
   }
 
   function validateRateInput(inputElem) {
+    if (!inputElem.value || inputElem.value.trim() === '') {
+      return false;
+    }
     const val = parseRate(inputElem.value);
     if (isNaN(val) || val <= 0 || val >= 1) {
       alert("Rate constant must be a positive number LESS than 1 (0 < k < 1)!");
-      inputElem.value = "1/30";
+      inputElem.value = "";
       return false;
     }
     return true;
@@ -628,7 +632,7 @@
     const rateA = parseRate(document.getElementById('rateA').value);
     const rateB = parseRate(document.getElementById('rateB').value);
 
-    if (targetSeconds <= 0 || (rateA + rateB) >= 1) {
+    if (isNaN(rateA) || isNaN(rateB) || targetSeconds <= 0 || (rateA + rateB) >= 1) {
       stepMultiplier = 1;
       timerInterval = 200;
       if (isRunning) {
@@ -675,15 +679,26 @@
 
   function startSim() {
     if (isRunning) return;
+
+    const rawA = document.getElementById('initA').value;
+    const rawB = document.getElementById('initB').value;
+    if (rawA === '' || rawB === '') {
+      alert("Please enter initial amounts for A and B!");
+      return;
+    }
     
     const rA = document.getElementById('rateA');
     const rB = document.getElementById('rateB');
+    if (!rA.value || !rB.value) {
+      alert("Please enter both forward and reverse rate constants!");
+      return;
+    }
     if (!validateRateInput(rA) || !validateRateInput(rB)) return;
 
     if (currentStep === 0) {
-      const inputA = parseFloat(document.getElementById('initA').value);
-      const inputB = parseFloat(document.getElementById('initB').value);
-      curA = isNaN(inputA) ? 100 : inputA;
+      const inputA = parseFloat(rawA);
+      const inputB = parseFloat(rawB);
+      curA = isNaN(inputA) ? 0 : inputA;
       curB = isNaN(inputB) ? 0 : inputB;
       stageStartA = curA;
       stageStartB = curB;
@@ -729,10 +744,11 @@
   function resetSim() {
     pauseSim();
     currentStep = 0;
-    curA = parseFloat(document.getElementById('initA').value);
-    if (isNaN(curA)) curA = 100;
-    curB = parseFloat(document.getElementById('initB').value);
-    if (isNaN(curB)) curB = 0;
+    
+    const inputA = parseFloat(document.getElementById('initA').value);
+    curA = isNaN(inputA) ? 0 : inputA;
+    const inputB = parseFloat(document.getElementById('initB').value);
+    curB = isNaN(inputB) ? 0 : inputB;
     
     stageStartA = curA;
     stageStartB = curB;
@@ -860,8 +876,16 @@
   }
 
   function injectSpecies() {
-    const addA = parseFloat(document.getElementById('addA').value) || 0;
-    const addB = parseFloat(document.getElementById('addB').value) || 0;
+    const addAInput = document.getElementById('addA').value;
+    const addBInput = document.getElementById('addB').value;
+
+    if (addAInput === '' && addBInput === '') {
+      alert("Please enter ΔA or ΔB value to inject or remove species!");
+      return;
+    }
+
+    const addA = parseFloat(addAInput) || 0;
+    const addB = parseFloat(addBInput) || 0;
 
     const oldA = curA;
     const oldB = curB;
@@ -919,6 +943,11 @@
   function updateRates() {
     const newAInput = document.getElementById('newRateA');
     const newBInput = document.getElementById('newRateB');
+
+    if (!newAInput.value || !newBInput.value) {
+      alert("Please enter both new forward and reverse rate constants!");
+      return;
+    }
 
     if (!validateRateInput(newAInput) || !validateRateInput(newBInput)) return;
 
