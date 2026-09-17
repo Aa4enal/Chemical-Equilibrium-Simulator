@@ -94,7 +94,7 @@
   .btn-secondary { background: #edf2f7; color: #4a5568; }
   .btn-secondary:hover { background: #e2e8f0; }
 
-  /* 问号按钮：严格控制正圆形、清除默认 padding、靠右对齐 */
+  /* 问号按钮样式 */
   .icon-tooltip-btn {
     position: relative;
     display: inline-flex;
@@ -109,12 +109,12 @@
     padding: 0 !important;
     border: none;
     background: transparent;
-    border-radius: 50% !important;   /* 确保绝对正圆 */
+    border-radius: 50% !important;
     cursor: pointer;
     color: #718096;
     transition: background-color 0.15s ease, color 0.15s ease;
-    flex: 0 0 22px;                 /* 防止被 flex 容器挤压或拉伸 */
-    margin-left: auto;              /* 稳稳靠右对齐 */
+    flex: 0 0 22px;
+    margin-left: auto;
     box-sizing: border-box;
   }
 
@@ -273,11 +273,11 @@
       <div class="inline-inputs" style="margin-top: 4px;">
         <div>
           <span class="sub-label">A<sub>0</sub></span>
-          <input type="number" id="initA" value="" onchange="resetSim()">
+          <input type="number" id="initA" value="">
         </div>
         <div>
           <span class="sub-label">B<sub>0</sub></span>
-          <input type="number" id="initB" value="" onchange="resetSim()">
+          <input type="number" id="initB" value="">
         </div>
       </div>
     </div>
@@ -293,11 +293,11 @@
       <div class="inline-inputs" style="margin-top: 4px;">
         <div>
           <span class="sub-label">Forward (<i>k</i><sub>f</sub>)</span>
-          <input type="text" id="rateA" value="" onchange="validateRateInput(this); resetSim();">
+          <input type="text" id="rateA" value="" onchange="validateRateInput(this)">
         </div>
         <div>
           <span class="sub-label">Reverse (<i>k</i><sub>r</sub>)</span>
-          <input type="text" id="rateB" value="" onchange="validateRateInput(this); resetSim();">
+          <input type="text" id="rateB" value="" onchange="validateRateInput(this)">
         </div>
       </div>
     </div>
@@ -310,7 +310,7 @@
           <span class="tooltip-text">Continuous uses exact floats; Discrete rounds values each step</span>
         </button>
       </div>
-      <select id="rounding" onchange="resetSim()">
+      <select id="rounding">
         <option value="none" selected>Continuous (Exact Decimals)</option>
         <option value="floor">Discrete (Floor - Round Down)</option>
         <option value="round">Discrete (Nearest Integer)</option>
@@ -495,6 +495,7 @@
 
   let simTimer = null;
   let isRunning = false;
+  let isPaused = false;
 
   let lastStateStr = "";
   let stableCount = 0;
@@ -627,6 +628,7 @@
     return Number.isInteger(num) ? num : num.toFixed(2);
   }
 
+  // 重新计算自适应步速参数（Target Eq. Duration）
   function calculateAdaptivePacing() {
     const targetSeconds = parseFloat(document.getElementById('targetTimeSelect').value) || 0;
     const rateA = parseRate(document.getElementById('rateA').value);
@@ -672,14 +674,14 @@
   function toggleSim() {
     if (isRunning) {
       pauseSim();
+    } else if (isPaused) {
+      resumeSim();
     } else {
       startSim();
     }
   }
 
   function startSim() {
-    if (isRunning) return;
-
     const rawA = document.getElementById('initA').value;
     const rawB = document.getElementById('initB').value;
     if (rawA === '' || rawB === '') {
@@ -695,25 +697,13 @@
     }
     if (!validateRateInput(rA) || !validateRateInput(rB)) return;
 
-    if (currentStep === 0) {
-      const inputA = parseFloat(rawA);
-      const inputB = parseFloat(rawB);
-      curA = isNaN(inputA) ? 0 : inputA;
-      curB = isNaN(inputB) ? 0 : inputB;
-      stageStartA = curA;
-      stageStartB = curB;
-      
-      updateDisplay();
-      if (chart) {
-        chart.data.datasets[0].data = [{x: 0, y: curA}];
-        chart.data.datasets[1].data = [{x: 0, y: curB}];
-        chart.update();
-      }
-    }
+    resetSimStateOnly();
 
+    // 重新确认 calculation mode 与 target duration 的步速参数
     calculateAdaptivePacing();
 
     isRunning = true;
+    isPaused = false;
     simTimer = setInterval(stepRound, timerInterval);
 
     const btn = document.getElementById('toggleBtn');
@@ -723,14 +713,30 @@
 
   function pauseSim() {
     isRunning = false;
+    isPaused = true;
     if (simTimer) {
       clearInterval(simTimer);
       simTimer = null;
     }
 
     const btn = document.getElementById('toggleBtn');
-    btn.innerText = 'Start';
+    btn.innerText = 'Resume';
     btn.className = 'btn-primary';
+  }
+
+  function resumeSim() {
+    if (isRunning) return;
+    
+    // 重新确认 calculation mode 与 target duration 的步速参数
+    calculateAdaptivePacing();
+
+    isRunning = true;
+    isPaused = false;
+    simTimer = setInterval(stepRound, timerInterval);
+
+    const btn = document.getElementById('toggleBtn');
+    btn.innerText = 'Pause';
+    btn.className = 'btn-danger';
   }
 
   function clearSummary() {
@@ -741,8 +747,13 @@
     }
   }
 
-  function resetSim() {
-    pauseSim();
+  function resetSimStateOnly() {
+    if (simTimer) {
+      clearInterval(simTimer);
+      simTimer = null;
+    }
+    isRunning = false;
+    isPaused = false;
     currentStep = 0;
     
     const inputA = parseFloat(document.getElementById('initA').value);
@@ -773,6 +784,27 @@
       chart.data.datasets[1].data = [{x: 0, y: curB}];
       chart.update();
     }
+
+    const btn = document.getElementById('toggleBtn');
+    btn.innerText = 'Start';
+    btn.className = 'btn-primary';
+  }
+
+  function resetSim() {
+    // 1. 清空 Initial Setup 数值框
+    document.getElementById('initA').value = '';
+    document.getElementById('initB').value = '';
+    document.getElementById('rateA').value = '';
+    document.getElementById('rateB').value = '';
+
+    // 2. 还原 Initial Setup 下拉菜单默认选项
+    document.getElementById('rounding').value = 'none';
+    document.getElementById('targetTimeSelect').value = '10';
+
+    // 3. Stress 区保留原状
+
+    // 4. 重置计算状态与图表数据
+    resetSimStateOnly();
     
     setTimeout(syncHeights, 50);
   }
@@ -780,16 +812,12 @@
   function stepRound() {
     const rateA = parseRate(document.getElementById('rateA').value);
     const rateB = parseRate(document.getElementById('rateB').value);
-    const roundMode = document.getElementById('rounding').value;
-
-    let moveA_last = 0;
-    let moveB_last = 0;
-    let startA_last = 0;
-    let startB_last = 0;
+    const roundMode = document.getElementById('rounding').value; // 实时读取 Calculation Mode
+    const tbody = document.querySelector('#logTable tbody');
 
     for (let s = 0; s < stepMultiplier; s++) {
-      startA_last = curA;
-      startB_last = curB;
+      const startA_last = curA;
+      const startB_last = curB;
 
       let moveA = curA * rateA;
       let moveB = curB * rateB;
@@ -802,15 +830,30 @@
         moveB = Math.round(moveB);
       }
 
-      moveA_last = moveA;
-      moveB_last = moveB;
-
       const nextA = curA - moveA + moveB;
       const nextB = curB - moveB + moveA;
 
       currentStep++;
       curA = nextA;
       curB = nextB;
+
+      const ratio = curA === 0 ? "∞" : (curB / curA).toFixed(2);
+      const rowHTML = `<tr id="log-row-${currentStep}">
+        <td>${currentStep}</td>
+        <td>${fmt(startA_last)}</td>
+        <td>${fmt(moveA)}</td>
+        <td>${fmt(startB_last)}</td>
+        <td>${fmt(moveB)}</td>
+        <td>${fmt(curA)}</td>
+        <td>${fmt(curB)}</td>
+        <td>${ratio}</td>
+      </tr>`;
+      tbody.insertAdjacentHTML('afterbegin', rowHTML);
+
+      if (chart) {
+        chart.data.datasets[0].data.push({x: currentStep, y: parseFloat(curA.toFixed(2))});
+        chart.data.datasets[1].data.push({x: currentStep, y: parseFloat(curB.toFixed(2))});
+      }
 
       const currentStateStr = `${fmt(curA)}_${fmt(curB)}`;
       if (currentStateStr === lastStateStr) {
@@ -821,8 +864,8 @@
           
           equilStartA = startA_last;
           equilStartB = startB_last;
-          equilMoveA = moveA_last;
-          equilMoveB = moveB_last;
+          equilMoveA = moveA;
+          equilMoveB = moveB;
           equilA = curA;
           equilB = curB;
 
@@ -830,9 +873,19 @@
 
           document.getElementById('th-log-Ae').innerHTML = 'Eq. Amount<br>(A<sub>eq</sub>)';
           document.getElementById('th-log-Be').innerHTML = 'Eq. Amount<br>(B<sub>eq</sub>)';
-          document.getElementById('th-log-Ratio').innerHTML = 'Eq. Ratio<br>(B<sub>eq</sub> / A<sub>eq</sub>)';
+          document.getElementById('th-log-Ratio').innerHTML = 'Eq. Ratio<br>(B<sub>eq</sub> / A<sub>e</sub>)';
+
+          const eqRow = document.getElementById(`log-row-${actualEquilStep}`);
+          if (eqRow) {
+            eqRow.classList.add('equil-highlight');
+          }
 
           pauseSim();
+          const btn = document.getElementById('toggleBtn');
+          btn.innerText = 'Start';
+          btn.className = 'btn-primary';
+          isPaused = false;
+
           saveToSummary();
           break;
         }
@@ -843,38 +896,14 @@
       }
     }
 
-    const tbody = document.querySelector('#logTable tbody');
-
-    const ratio = curA === 0 ? "∞" : (curB / curA).toFixed(2);
-    const rowHTML = `<tr id="log-row-${currentStep}">
-      <td>${currentStep}</td>
-      <td>${fmt(startA_last)}</td>
-      <td>${fmt(moveA_last)}</td>
-      <td>${fmt(startB_last)}</td>
-      <td>${fmt(moveB_last)}</td>
-      <td>${fmt(curA)}</td>
-      <td>${fmt(curB)}</td>
-      <td>${ratio}</td>
-    </tr>`;
-    
-    tbody.insertAdjacentHTML('afterbegin', rowHTML);
-
-    if (isCurrentlyEquilibrium) {
-      const eqRow = document.getElementById(`log-row-${actualEquilStep}`);
-      if (eqRow) {
-        eqRow.classList.add('equil-highlight');
-      }
-    }
-
     if (chart) {
-      chart.data.datasets[0].data.push({x: currentStep, y: parseFloat(curA.toFixed(2))});
-      chart.data.datasets[1].data.push({x: currentStep, y: parseFloat(curB.toFixed(2))});
       chart.update();
     }
 
     updateDisplay();
   }
 
+  // 点击 Apply Inject Species
   function injectSpecies() {
     const addAInput = document.getElementById('addA').value;
     const addBInput = document.getElementById('addB').value;
@@ -935,11 +964,14 @@
     tbody.insertAdjacentHTML('afterbegin', rowHTML);
 
     updateDisplay();
+
+    // 重新确认 calculation mode 与 target duration 的步速参数
     calculateAdaptivePacing();
 
-    if (!isRunning) startSim();
+    if (!isRunning) resumeSim();
   }
 
+  // 点击 Apply Change Rate Constants
   function updateRates() {
     const newAInput = document.getElementById('newRateA');
     const newBInput = document.getElementById('newRateB');
@@ -979,9 +1011,10 @@
 
     if (chart) chart.update();
 
+    // 重新确认 calculation mode 与 target duration 的步速参数
     calculateAdaptivePacing();
 
-    if (!isRunning) startSim();
+    if (!isRunning) resumeSim();
   }
 
   function updateDisplay() {
@@ -1095,6 +1128,11 @@
     }
 
     updateDisplay();
+    
+    const btn = document.getElementById('toggleBtn');
+    btn.innerText = 'Start';
+    btn.className = 'btn-primary';
+    isPaused = false;
   }
 
   function exportLogToExcel() {
